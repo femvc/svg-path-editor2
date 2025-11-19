@@ -262,6 +262,7 @@
       width: 400px;
       height: 400px;
       cursor: grab;
+      overflow: visible;
     }
 
     #svgCanvas.dragging {
@@ -453,6 +454,7 @@
       background-color: #202020;
       font-size: 0;
       line-height: 0;
+      overflow: visible;
     }
 
     .page-container:focus {
@@ -1634,38 +1636,31 @@
     });
 
     /**
-     * Handle global keyup for arrow key movement of selected points
+     * Arrow key state for long-press support
      */
-    function handleGlobalKeyup(event) {
-      // Ignore events from form controls
-      const tag = event.target.tagName;
-      const isFormElement =
-        tag === 'INPUT' ||
-        tag === 'TEXTAREA' ||
-        tag === 'BUTTON' ||
-        event.target.isContentEditable;
+    const arrowState = {
+      ArrowUp:    { pressed: false, timeoutId: null, intervalId: null, lastEvent: null },
+      ArrowDown:  { pressed: false, timeoutId: null, intervalId: null, lastEvent: null },
+      ArrowLeft:  { pressed: false, timeoutId: null, intervalId: null, lastEvent: null },
+      ArrowRight: { pressed: false, timeoutId: null, intervalId: null, lastEvent: null }
+    };
 
-      if (isFormElement) {
-        return; // do nothing, don't call preventDefault
-      }
-
-      // Ignore when no points are selected
-      if (!state.selectedPoints || state.selectedPoints.size === 0) {
-        return;
-      }
-
-      // Only handle arrow keys
-      const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-      if (!arrowKeys.includes(event.key)) {
-        return;
-      }
-
-      // Calculate movement step
+    /**
+     * Get movement step based on modifier keys
+     */
+    function getStepFromEvent(event) {
       let step = 1;
       if (event.shiftKey) step *= 10;   // Shift: multiply by 10
       if (event.altKey) step /= 10;     // Alt/Option: divide by 10
+      return step;
+    }
 
-      // Move all selected points
+    /**
+     * Move selected points in the specified direction
+     */
+    function moveSelectedPoints(directionKey, step) {
+      if (!state.selectedPoints || state.selectedPoints.size === 0) return;
+
       state.selectedPoints.forEach(pointId => {
         // Get the command index for this point
         const cmdIndex = state.pointToCommandMap.get(pointId);
@@ -1678,16 +1673,15 @@
         const paramIndex = parseInt(pointElement.dataset.paramIndex);
         const cmd = state.commands[cmdIndex];
         const typeUpper = cmd.type.toUpperCase();
-        const isRelative = cmd.type === cmd.type.toLowerCase();
 
         // Calculate the delta based on arrow key
         let deltaX = 0;
         let deltaY = 0;
 
-        if (event.key === 'ArrowUp') deltaY = -step;
-        if (event.key === 'ArrowDown') deltaY = step;
-        if (event.key === 'ArrowLeft') deltaX = -step;
-        if (event.key === 'ArrowRight') deltaX = step;
+        if (directionKey === 'ArrowUp') deltaY = -step;
+        if (directionKey === 'ArrowDown') deltaY = step;
+        if (directionKey === 'ArrowLeft') deltaX = -step;
+        if (directionKey === 'ArrowRight') deltaX = step;
 
         // Apply movement based on command type
         if (typeUpper === 'M' || typeUpper === 'L' || typeUpper === 'T') {
@@ -1712,16 +1706,148 @@
         cmd.params = cmd.params.map(p => Math.round(p * 100) / 100);
       });
 
-      // Prevent default to avoid page scrolling
-      event.preventDefault();
-
       // Update path and UI
-      updatePathFromCommands();
+      updatePathFromCommands(true); // Skip history during continuous movement
       renderCommands();
     }
 
-    // Add global keyup listener
-    window.addEventListener('keyup', handleGlobalKeyup);
+    /**
+     * Handle keydown for arrow key movement with long-press support
+     */
+    function handleArrowKeyDown(event) {
+      // Ignore events from form controls
+      const tag = event.target.tagName;
+      const isFormElement =
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        tag === 'BUTTON' ||
+        event.target.isContentEditable;
+
+      if (isFormElement) {
+        return; // do nothing, don't call preventDefault
+      }
+
+      // Ignore when no points are selected
+      if (!state.selectedPoints || state.selectedPoints.size === 0) {
+        return;
+      }
+
+      // Only handle arrow keys
+      const key = event.key;
+      const isArrow =
+        key === 'ArrowUp' ||
+        key === 'ArrowDown' ||
+        key === 'ArrowLeft' ||
+        key === 'ArrowRight';
+
+      if (!isArrow) return;
+
+      // Ignore browser auto-repeat keydown events to avoid stacking timers
+      if (event.repeat) {
+        event.preventDefault();
+        return;
+      }
+
+      // Look up the state object
+      const keyState = arrowState[key];
+      if (!keyState) return;
+
+      // If already pressed, ignore (to avoid duplicates)
+      if (keyState.pressed) return;
+
+      // Mark as pressed
+      keyState.pressed = true;
+      keyState.lastEvent = event;
+
+      // Move points once immediately
+      const step = getStepFromEvent(event);
+      moveSelectedPoints(key, step);
+
+      // Prevent default to avoid page scrolling
+      event.preventDefault();
+
+      // Start a 1.5-second timeout to detect long-press
+      keyState.timeoutId = window.setTimeout(() => {
+        // Start continuous movement if still pressed
+        if (!keyState.pressed) return;
+
+        keyState.intervalId = window.setInterval(() => {
+          // For each tick, recompute step based on the last known modifier state
+          const currentStep = getStepFromEvent(keyState.lastEvent);
+          moveSelectedPoints(key, currentStep);
+        }, 100); // Move every 100ms during long-press
+      }, 700); // 1.5s long-press threshold
+    }
+
+    /**
+     * Handle keyup to stop arrow key movement
+     */
+    function handleArrowKeyUp(event) {
+      // Ignore events from form controls
+      const tag = event.target.tagName;
+      const isFormElement =
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        tag === 'BUTTON' ||
+        event.target.isContentEditable;
+
+      if (isFormElement) {
+        return;
+      }
+
+      // Only handle arrow keys
+      const key = event.key;
+      const isArrow =
+        key === 'ArrowUp' ||
+        key === 'ArrowDown' ||
+        key === 'ArrowLeft' ||
+        key === 'ArrowRight';
+
+      if (!isArrow) return;
+
+      // Look up the state object
+      const keyState = arrowState[key];
+      if (!keyState) return;
+
+      // Mark as released and clear timers
+      keyState.pressed = false;
+      keyState.lastEvent = null;
+
+      if (keyState.timeoutId !== null) {
+        clearTimeout(keyState.timeoutId);
+        keyState.timeoutId = null;
+      }
+
+      if (keyState.intervalId !== null) {
+        clearInterval(keyState.intervalId);
+        keyState.intervalId = null;
+        // Save to history when continuous movement ends
+        saveHistory();
+      }
+    }
+
+    /**
+     * Cleanup timers on window blur to avoid stuck movement
+     */
+    function cleanupArrowKeys() {
+      Object.values(arrowState).forEach(keyState => {
+        keyState.pressed = false;
+        keyState.lastEvent = null;
+        if (keyState.timeoutId !== null) {
+          clearTimeout(keyState.timeoutId);
+          keyState.timeoutId = null;
+        }
+        if (keyState.intervalId !== null) {
+          clearInterval(keyState.intervalId);
+          keyState.intervalId = null;
+        }
+      });
+    }
+
+    // Add global keyboard listeners
+    window.addEventListener('keydown', handleArrowKeyDown);
+    window.addEventListener('keyup', handleArrowKeyUp);
+    window.addEventListener('blur', cleanupArrowKeys);
 
     /**
      * Utility: debounce
