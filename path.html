@@ -1634,6 +1634,96 @@
     });
 
     /**
+     * Handle global keyup for arrow key movement of selected points
+     */
+    function handleGlobalKeyup(event) {
+      // Ignore events from form controls
+      const tag = event.target.tagName;
+      const isFormElement =
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        tag === 'BUTTON' ||
+        event.target.isContentEditable;
+
+      if (isFormElement) {
+        return; // do nothing, don't call preventDefault
+      }
+
+      // Ignore when no points are selected
+      if (!state.selectedPoints || state.selectedPoints.size === 0) {
+        return;
+      }
+
+      // Only handle arrow keys
+      const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+      if (!arrowKeys.includes(event.key)) {
+        return;
+      }
+
+      // Calculate movement step
+      let step = 1;
+      if (event.shiftKey) step *= 10;   // Shift: multiply by 10
+      if (event.altKey) step /= 10;     // Alt/Option: divide by 10
+
+      // Move all selected points
+      state.selectedPoints.forEach(pointId => {
+        // Get the command index for this point
+        const cmdIndex = state.pointToCommandMap.get(pointId);
+        if (cmdIndex === undefined) return;
+
+        // Get the control point element to find paramIndex and pointType
+        const pointElement = document.querySelector(`.control-point[data-point-id="${pointId}"]`);
+        if (!pointElement) return;
+
+        const paramIndex = parseInt(pointElement.dataset.paramIndex);
+        const cmd = state.commands[cmdIndex];
+        const typeUpper = cmd.type.toUpperCase();
+        const isRelative = cmd.type === cmd.type.toLowerCase();
+
+        // Calculate the delta based on arrow key
+        let deltaX = 0;
+        let deltaY = 0;
+
+        if (event.key === 'ArrowUp') deltaY = -step;
+        if (event.key === 'ArrowDown') deltaY = step;
+        if (event.key === 'ArrowLeft') deltaX = -step;
+        if (event.key === 'ArrowRight') deltaX = step;
+
+        // Apply movement based on command type
+        if (typeUpper === 'M' || typeUpper === 'L' || typeUpper === 'T') {
+          cmd.params[0] += deltaX;
+          cmd.params[1] += deltaY;
+        } else if (typeUpper === 'H') {
+          cmd.params[0] += deltaX;
+        } else if (typeUpper === 'V') {
+          cmd.params[0] += deltaY;
+        } else if (typeUpper === 'C' || typeUpper === 'Q') {
+          cmd.params[paramIndex] += deltaX;
+          cmd.params[paramIndex + 1] += deltaY;
+        } else if (typeUpper === 'S') {
+          cmd.params[paramIndex] += deltaX;
+          cmd.params[paramIndex + 1] += deltaY;
+        } else if (typeUpper === 'A') {
+          cmd.params[paramIndex] += deltaX;
+          cmd.params[paramIndex + 1] += deltaY;
+        }
+
+        // Round to 2 decimal places
+        cmd.params = cmd.params.map(p => Math.round(p * 100) / 100);
+      });
+
+      // Prevent default to avoid page scrolling
+      event.preventDefault();
+
+      // Update path and UI
+      updatePathFromCommands();
+      renderCommands();
+    }
+
+    // Add global keyup listener
+    window.addEventListener('keyup', handleGlobalKeyup);
+
+    /**
      * Utility: debounce
      */
     function debounce(func, wait) {
