@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    .workspace {
+      /* -webkit-box-flex: 1; */
+      flex: 1 1 0%;
+      /* display: flex; */
+      /* -webkit-box-orient: vertical; */
+      /* -webkit-box-direction: normal; */
+      /* flex-direction: column; */
+      overflow: hidden;
+      background-color: #202020;
+      position: relative;
+      z-index: 200;
+      border-width: 0px;
+      height: 100vh;
+
+    }
+
+    .ruler-canvas-container {
+      display: -webkit-box;
+      display: -ms-flexbox;
+      display: flex;
+      background-color: var(--bgWorkspaceRuler)
+    }
+
+    .ruler-guides-container>.ruler {
+      position: absolute;
+      top: 0;
+      z-index: 9999;
+    }
+
+    .rule-corner {
+      cursor: default;
+      left: 0;
+      top: 0;
+      position: absolute;
+      width: 23px;
+      height: 23px;
+      z-index: 9999;
+      background-color: #2b2b2b;
+    }
+
+
+    .page-container {
+      position: absolute;
+      z-index: 2;
+
+      left: 0;
+      top: 0;
+      -webkit-transform-origin: top left;
+      transform-origin: top left;
+      background-color: white;
+    }
+
+    .page-container:focus {
+      outline: none
+    }
+
+    /* Zoom controls */
+    .zoom-controls {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      display: flex;
+      gap: 8px;
+      z-index: 10000;
+    }
+
+    .zoom-btn {
+      width: 36px;
+      height: 36px;
+      background: #2b2b2b;
+      border: 1px solid #404040;
+      color: #d4d4d4;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+
+    .zoom-btn:hover {
+      background: #3a3a3a;
+      border-color: #505050;
+    }
+
+    .zoom-btn:active {
+      background: #454545;
+      transform: scale(0.95);
+    }
+
+    .zoom-btn.actual-size {
+      width: 48px;
+      font-size: 13px;
+    }
+  </style>
+  <script>
+    class rulerX {
+      constructor() {
+        this.props = this.props || {};
+        this.paint = (conf) => {
+          let scene = window.getSceneInfo();
+          let unit = conf.scaleFactor >= 3 ? 10 : conf.scaleFactor <= 0.25 ? 200 : conf.scaleFactor <= 0.5 ? 100 : 50;
+          let e = {
+            'ctx': conf.ctx,
+            'scaleFactor': conf.scaleFactor || 1,
+            'rulerUnit': unit,
+            'rulerHeight': 24,
+            'rulerWidth': scene.sceneWidth,
+            'zeroGraduationPosition': {
+              'x': scene.zeroGraduationPosition.x,
+              'y': scene.zeroGraduationPosition.y,
+            },
+          };
+          const { ctx: t, rulerWidth: o, rulerHeight: n, rulerUnit: r, scaleFactor: s, zeroGraduationPosition: { x: l } } = e;
+          // aa.default.applyGraduationStroke(t);
+          t.lineWidth = 1;
+          t.strokeStyle = 'rgba(96, 96, 96, 1)';
+
+          t.beginPath();
+          t.moveTo(0, n - .5);
+          t.lineTo(o, n - .5);
+          const { activeArea: c } = this.props;
+          if (c) {
+            const { left: e, width: o } = c;
+            // aa.default.applyActiveAreaFill(t);
+            t.fillStyle = 'rgba(0, 157, 255, 0.2)';
+
+            t.fillRect(Math.round(l + e * s), 0, Math.round(o * s), n);
+          }
+          this.addFullRulerLineX({
+            startX: cc.calcStartCoordinateValue(l, s, r),
+            endX: o,
+            startGraduationValue: cc.calcStartGraduationValue(l, s, r),
+          }, e);
+          t.stroke();
+        };
+      }
+
+      addFullRulerLineX(e, t) {
+        const { startX: o, endX: n, startGraduationValue: i } = e
+          , { ctx: a, scaleFactor: r, rulerUnit: s } = t
+          , l = 1 * s * r
+          , c = Math.ceil(n / l);
+        let d = o
+          , h = i;
+        for (let e = 0; e <= c; e++) {
+          this.addUnitRulerLineX({
+            startX: d,
+            intervalCount: 10,
+          }, t);
+          this.addRulerLineText(a, d, h);
+          d += l;
+          h += s;
+        }
+      }
+
+      addRulerLineText(e, t, o) {
+        const n = o.toString()
+          , i = t + 4;
+        // aa.default.applyFontStyle(e);
+        e.fillStyle = 'rgba(96, 96, 96, 1)';
+        e.font = `12px Arial`;
+
+        e.fillText(n, i, 12);
+      }
+
+      addUnitRulerLineX(e, t) {
+        const { startX: o, intervalCount: n } = e
+          , { ctx: ctx, rulerHeight: r, rulerUnit: s, scaleFactor: l } = t
+          , c = s / n * l;
+        let d = o;
+        for (let e = 0; e < n; e++) {
+          const t = Math.round(d) + .5;
+          ctx.moveTo(t, r);
+          if (0 === e) ctx.lineTo(t, 0);
+          else ctx.lineTo(t, r - aa.SHORT_GRADUATION_SIZE);
+          d += c;
+        }
+      }
+    }
+  </script>
+  <script>
+    class rulerY {
+      constructor() {
+        this.props = this.props || {};
+        this.paint = (conf) => {
+          let scene = window.getSceneInfo();
+          let unit = conf.scaleFactor >= 3 ? 10 : conf.scaleFactor <= 0.25 ? 200 : conf.scaleFactor <= 0.5 ? 100 : 50;
+          let e = {
+            'ctx': conf.ctx,
+            'scaleFactor': conf.scaleFactor || 1,
+            'rulerUnit': unit,
+            'rulerHeight': scene.sceneHeight,
+            'rulerWidth': 24,
+            'zeroGraduationPosition': {
+              'x': scene.zeroGraduationPosition.x,
+              'y': scene.zeroGraduationPosition.y,
+            },
+          };
+          const { ctx: t, rulerWidth: o, rulerHeight: n, rulerUnit: r, scaleFactor: s, zeroGraduationPosition: { y: l } } = e;
+          // aa.default.applyGraduationStroke(t);
+          t.lineWidth = 1;
+          t.strokeStyle = 'rgba(96, 96, 96, 1)';
+
+          t.beginPath();
+          t.moveTo(o - 0.5, 0);
+          t.lineTo(o - 0.5, n);
+          const { activeArea: c } = this.props;
+          if (c) {
+            const { top: e, height: n } = c;
+            // aa.default.applyActiveAreaFill(t)
+            t.fillStyle = 'rgba(0, 157, 255, 0.2)';
+
+            t.fillRect(0, Math.round(l + e * s), o, Math.round(n * s));
+          }
+          this.addFullRulerLine({
+            startY: cc.calcStartCoordinateValue(l, s, r),
+            endY: n,
+            startGraduationValue: cc.calcStartGraduationValue(l, s, r),
+          }, e);
+          t.stroke();
+          t.clearRect(0, 0, aa.RULE_SIZE, aa.RULE_SIZE);
+          t.strokeRect(-.5, -.5, aa.RULE_SIZE, aa.RULE_SIZE);
+        };
+      }
+
+      addFullRulerLine(e, t) {
+        const { startY: o, endY: n, startGraduationValue: i } = e
+          , { ctx: a, scaleFactor: r, rulerUnit: s } = t
+          , l = 1 * s * r
+          , c = Math.ceil(n / l);
+        let d = o
+          , h = i;
+        for (let e = 0; e <= c; e++) {
+          this.addUnitRulerLine({
+            startY: d,
+            intervalCount: 10,
+          }, t);
+          this.addRulerLineText(a, d, h);
+          d += l;
+          h += s;
+        }
+      }
+
+      addRulerLineText(e, t, o) {
+        const n = o.toString()
+          , i = t;
+        // aa.default.applyFontStyle(e),
+        e.fillStyle = 'rgba(96, 96, 96, 1)';
+        e.font = `12px Arial`;
+        e.save();
+        e.translate(12, i);
+        e.rotate(-Math.PI / 2);
+        e.translate(-12, -i);
+        e.fillText(n, 16, i);
+        e.restore();
+      }
+
+      addUnitRulerLine(e, t) {
+        const { startY: o, intervalCount: n } = e
+          , { ctx: i, rulerWidth: r, rulerUnit: s, scaleFactor: l } = t
+          , c = s / n * l;
+        let d = o;
+        for (let e = 0; e < n; e++) {
+          const t = Math.round(d) + .5;
+          i.moveTo(r, t),
+            0 === e ? i.lineTo(0, t) : i.lineTo(r - aa.SHORT_GRADUATION_SIZE, t),
+            d += c;
+        }
+      }
+    }
+  </script>
+  <script>
+    var ruler = {};
+    window.ruler = ruler;
+    ruler.updateRuler = function (conf) {
+      // {"ctx":{},"scaleFactor":1,"rulerUnit":50,"rulerHeight":24,"rulerWidth":469,"zeroGraduationPosition":{"x":313,"y":267}}
+      this.state = {
+        width: conf.width,
+        height: conf.height,
+      };
+      this.setupCanvas(conf);
+      conf.scene.paint(conf);
+    };
+    ruler.setupCanvas = function (conf) {
+      const { width: e, height: t } = this.state;
+      if (conf.ctx) {
+        const o = ruler.getDeviceRatio(conf.ctx)
+          , n = conf.ctx.canvas;
+        n.width = e * o;
+        n.height = t * o;
+        conf.ctx.fillStyle = 'rgb(43, 43, 43)';
+        conf.ctx.fillRect(0, 0, n.width, n.height);
+        conf.ctx.scale(o, o);
+      }
+    };
+    ruler.getDeviceRatio = function (e) {
+      if (!e)
+        return 1;
+      return (window.devicePixelRatio || 1) / (e.backingStorePixelRatio || e.webkitBackingStorePixelRatio || e.mozBackingStorePixelRatio || e.msBackingStorePixelRatio || e.oBackingStorePixelRatio || e.backingStorePixelRatio || 1);
+    };
+
+    window.aa = {
+      'GRADUATION_FONT_COLOR': 'rgba(153, 165, 190, 1)',
+      'GRADUATION_STROKE_COLOR': 'rgba(66, 81, 108, 1)',
+      'ACTIVE_AREA_COLOR': 'rgba(0, 157, 255, 0.2)',
+      'GRADUATION_FONT_SIZE': 12,
+      'SHORT_GRADUATION_SIZE': 8,
+      'RULE_SIZE': 24,
+    };
+
+    var xx = new rulerX();
+    var yy = new rulerY();
+
+    ruler.flushRuler = () => {
+      const currentZoom = window.appState ? window.appState.zoom : 1;
+      ruler.updateRuler({
+        ctx: document.querySelector('.ruler-canvas1').getContext('2d'),
+        height: 24,
+        width: window.getSceneInfo().sceneWidth,
+        scene: xx,
+        scaleFactor: currentZoom,
+      });
+      ruler.updateRuler({
+        ctx: document.querySelector('.ruler-canvas2').getContext('2d'),
+        height: window.getSceneInfo().sceneHeight,
+        width: 24,
+        scene: yy,
+        scaleFactor: currentZoom,
+      });
+    };
+  </script>
+</head>
+
+<body>
+  <div>
+    <div id="workspace" class="workspace" tabindex="-1">
+      <!-- Zoom Controls -->
+      <div class="zoom-controls">
+        <button class="zoom-btn" id="zoom-in" title="Zoom In">+</button>
+        <button class="zoom-btn" id="zoom-out" title="Zoom Out">−</button>
+        <button class="zoom-btn actual-size" id="actual-size" title="Actual Size">1:1</button>
+      </div>
+
+      <div class="rule-wrapper">
+        <div class="ruler-guides-container" tabindex="-1">
+          <div class="ruler" style="width: 100%;">
+            <div class="ruler-canvas-container" style="width: 100%;">
+              <canvas class="ruler-canvas ruler-canvas1" style="height: 24px;" width="944" height="48"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="ruler-guides-container" tabindex="-1">
+          <div class="ruler" style="height: 100%;">
+            <div class="ruler-canvas-container" style="height: 100%;">
+              <canvas class="ruler-canvas ruler-canvas2" style="width: 24px;" width="48" height="1396"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="rule-corner"></div>
+      </div>
+      <div class="page-container" style="transform: translate(0px, 0px);">
+        <div style="width: 200px; height: 2000px;">2000</div>
+      </div>
+    </div>
+</body>
+<script>
+  const workspaceElem = document.querySelector('.workspace');
+  const pageContainerElem = document.querySelector('.page-container');
+
+  // Global application state
+  window.appState = {
+    zoom: 1,
+    offsetX: 0,
+    offsetY: 0,
+    minZoom: 0.25,
+    maxZoom: 10
+  };
+
+  window.cc = {};
+  // cc.findNearestNumber
+  // = cc.isInsideHorizontalBounds = cc.calcGraduationValueByCoordinateValue
+  // = cc.calcCoordinateValueByGraduationValue = cc.calcStartGraduationValue
+  // = cc.calcStartCoordinateValue = void 0
+  cc.calcStartCoordinateValue = function (e, t, o) {
+    const n = o * t
+      , i = e % n;
+    let a = 0;
+    a = i > 0 ? i - n : i;
+    return a;
+  };
+  cc.calcStartGraduationValue = function (e, t, o) {
+    const n = o * t;
+    return 0 - Math.ceil(e / n) * o;
+  };
+  cc.calcCoordinateValueByGraduationValue = function (e, t, o) {
+    const n = e * o + t;
+    return Math.round(n);
+  };
+  cc.calcGraduationValueByCoordinateValue = function (e, t, o) {
+    const n = (e - t) / o;
+    return Math.round(n);
+  };
+  cc.isInsideHorizontalBounds = function (e, t) {
+    return e >= t.left && e <= t.right;
+  };
+  cc.findNearestNumber = function (e, t) {
+    return e.reduce(((e, o) => Math.abs(e - t) > Math.abs(o - t) ? o : e));
+  };
+
+  window.getSceneInfo = () => {
+    return {
+      zeroGraduationPosition: {
+        'x': window.appState.offsetX,
+        'y': window.appState.offsetY,
+      },
+      sceneWidth: workspaceElem.offsetWidth,
+      sceneHeight: workspaceElem.offsetHeight,
+    };
+  };
+
+  /**
+   * Update the page container transform with current offset and zoom
+   */
+  function updateTransform() {
+    const { offsetX, offsetY, zoom } = window.appState;
+    pageContainerElem.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
+    pageContainerElem.setAttribute('x', String(offsetX));
+    pageContainerElem.setAttribute('y', String(offsetY));
+  }
+
+  /**
+   * Set zoom level and update everything
+   */
+  function setZoom(newZoom) {
+    const { minZoom, maxZoom } = window.appState;
+    window.appState.zoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
+    updateTransform();
+    ruler.flushRuler();
+  }
+
+  /**
+   * Update rulers after any change
+   */
+  function updateRulers() {
+    ruler.flushRuler();
+  }
+
+
+  workspaceElem.addEventListener('wheel', (e) => {
+    e.preventDefault(); // Prevent page scrolling
+
+    let { offsetX, offsetY, zoom } = window.appState;
+
+    // Define content bounds
+    let full = {
+      xmin: -200,
+      xmax: pageContainerElem.clientWidth - 23,
+      ymin: -100,
+      ymax: pageContainerElem.clientHeight - 23
+    };
+
+    // Adjust bounds based on zoom level
+    let maxX = Math.max(0, workspaceElem.clientWidth - 50);
+    let minX = Math.min(0, -full.xmax * zoom + 50);
+
+    let maxY = Math.max(0, workspaceElem.clientHeight - 50);
+    let minY = Math.min(0, -full.ymax * zoom + 50);
+
+    // Update offsets based on wheel delta
+    offsetX -= e.deltaX;
+    offsetY -= e.deltaY;
+
+    // Clamp to bounds
+    if (offsetX < minX) offsetX = minX;
+    if (offsetX > maxX) offsetX = maxX;
+    if (offsetY < minY) offsetY = minY;
+    if (offsetY > maxY) offsetY = maxY;
+
+    // Update state
+    window.appState.offsetX = offsetX;
+    window.appState.offsetY = offsetY;
+
+    // Update transform and rulers
+    updateTransform();
+    updateRulers();
+  });
+
+  // Zoom control buttons
+  document.getElementById('zoom-in').addEventListener('click', () => {
+    setZoom(window.appState.zoom + (window.appState.zoom >= 1 ? 1 : 0.25));
+  });
+
+  document.getElementById('zoom-out').addEventListener('click', () => {
+    setZoom(window.appState.zoom - (window.appState.zoom > 1 ? 1 : 0.25));
+  });
+
+  document.getElementById('actual-size').addEventListener('click', () => {
+    setZoom(1);
+  });
+
+  // Window resize handler
+  window.addEventListener('resize', () => {
+    updateRulers();
+  });
+
+  window.onload = () => {
+    ruler.flushRuler();
+  };
+</script>
+</body>
+
+</html>

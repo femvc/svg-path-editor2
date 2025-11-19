@@ -1,0 +1,1769 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SVG Path Editor - Dark Theme</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-dark: #1e1e1e;
+      --bg-darker: #151515;
+      --bg-light: #2d2d2d;
+      --bg-hover: #3a3a3a;
+      --bg-selected: #094771;
+      --border-color: #3e3e3e;
+      --text-primary: #d4d4d4;
+      --text-secondary: #8c8c8c;
+      --accent-blue: #4a9eff;
+      --accent-hover: #357abd;
+      --input-bg: #252525;
+      --path-stroke: #4a9eff;
+      --point-fill: #4a9eff;
+      --handle-fill: #ff6b6b;
+      --grid-color: #353536;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Left Sidebar */
+    .sidebar {
+      width: 360px;
+      background: var(--bg-darker);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .module {
+      border-bottom: 1px solid var(--border-color);
+      padding: 16px;
+    }
+
+    .module-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .module-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .module-menu-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 3px;
+      line-height: 1;
+    }
+
+    .module-menu-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .path-textarea {
+      width: 100%;
+      height: 70px;
+      padding: 8px;
+      font-family: 'Courier New', Consolas, Monaco, monospace;
+      font-size: 13px;
+      background: var(--input-bg);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      resize: vertical;
+      line-height: 1.4;
+    }
+
+    .path-textarea:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+    }
+
+    /* Commands Module */
+    .commands-list {
+      max-height: calc(100vh - 200px);
+      overflow-y: auto;
+    }
+
+    .command-row {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      margin-bottom: 6px;
+      background: var(--bg-light);
+      cursor: pointer;
+      position: relative;
+      user-select: none;
+    }
+
+    .command-row:hover {
+      background: var(--bg-hover);
+    }
+
+    .command-row.selected {
+      background: var(--bg-selected);
+      border-color: var(--accent-blue);
+    }
+
+    .command-label {
+      font-weight: 600;
+      font-family: 'Courier New', Consolas, Monaco, monospace;
+      min-width: 24px;
+      color: var(--text-primary);
+      font-size: 13px;
+      margin-right: 8px;
+    }
+
+    .command-params {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      flex: 1;
+      margin-right: 8px;
+    }
+
+    .param-group {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .param-label {
+      font-size: 10px;
+      color: var(--text-secondary);
+      font-family: 'Courier New', Consolas, Monaco, monospace;
+    }
+
+    .param-input {
+      width: 60px;
+      padding: 4px 6px;
+      background: var(--input-bg);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      font-size: 12px;
+      font-family: 'Courier New', Consolas, Monaco, monospace;
+    }
+
+    .param-input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+    }
+
+    .param-checkbox {
+      margin: 0 4px;
+      cursor: pointer;
+    }
+
+    .command-menu-btn {
+      cursor: pointer;
+      padding: 4px 8px;
+      color: var(--text-secondary);
+      font-size: 18px;
+      background: none;
+      border: none;
+      border-radius: 3px;
+      line-height: 1;
+    }
+
+    .command-menu-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      display: none;
+      min-width: 180px;
+      margin-top: 2px;
+    }
+
+    .dropdown-menu.visible {
+      display: block;
+    }
+
+    .dropdown-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .dropdown-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .dropdown-item .cmd-key {
+      font-family: 'Courier New', Consolas, Monaco, monospace;
+      font-weight: 600;
+      color: var(--accent-blue);
+      min-width: 16px;
+    }
+
+    /* Right Area */
+    .editor-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-dark);
+      position: relative;
+    }
+
+    .canvas-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #svgCanvas {
+      width: 400px;
+      height: 400px;
+      cursor: grab;
+    }
+
+    #svgCanvas.dragging {
+      cursor: grabbing;
+    }
+
+    .path-element {
+      fill: none;
+      stroke: var(--path-stroke);
+      stroke-width: 2;
+    }
+
+    .control-point {
+      cursor: pointer;
+    }
+
+    .control-point-circle {
+      fill: var(--point-fill);
+      stroke: var(--bg-darker);
+      stroke-width: 2;
+    }
+
+    .control-point-circle.selected {
+      /* fill: #ffa500; */
+      stroke: white;
+    }
+
+    .control-point-circle:hover {
+      fill: var(--accent-hover);
+    }
+
+    .control-handle-line {
+      stroke: var(--text-secondary);
+      stroke-width: 1;
+      stroke-dasharray: 3, 3;
+    }
+
+    .control-handle {
+      fill: var(--handle-fill);
+      stroke: var(--bg-darker);
+      stroke-width: 2;
+      cursor: pointer;
+    }
+
+    .control-handle.selected {
+      fill: #ffa500;
+      stroke: white;
+    }
+
+    .control-handle:hover {
+      fill: #ee5a52;
+    }
+
+    .grid-line {
+      stroke: var(--grid-color);
+      stroke-width: 1;
+    }
+
+    /* Floating Controls */
+    .view-controls {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+      padding: 8px;
+      display: flex;
+      gap: 4px;
+      z-index: 1000;
+    }
+
+    .control-btn {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: background 0.2s;
+    }
+
+    .control-btn:hover {
+      background: var(--bg-hover);
+    }
+
+    .control-btn.active {
+      background: var(--bg-selected);
+      border-color: var(--accent-blue);
+    }
+
+    .history-controls {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+      padding: 8px;
+      display: flex;
+      gap: 4px;
+      z-index: 1000;
+    }
+
+    .control-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .control-btn:disabled:hover {
+      background: var(--bg-dark);
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-darker);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--bg-hover);
+    }
+  </style>
+  <style>
+    .workspace {
+      /* -webkit-box-flex: 1; */
+      flex: 1 1 0%;
+      /* display: flex; */
+      /* -webkit-box-orient: vertical; */
+      /* -webkit-box-direction: normal; */
+      /* flex-direction: column; */
+      overflow: hidden;
+      background-color: #303030;
+      position: relative;
+      z-index: 200;
+      border-width: 0px;
+      height: 100vh;
+
+    }
+
+    .ruler-canvas-container {
+      display: -webkit-box;
+      display: -ms-flexbox;
+      display: flex;
+      background-color: var(--bgWorkspaceRuler)
+    }
+
+    .ruler-guides-container>.ruler {
+      position: absolute;
+      top: 0;
+      z-index: 9999;
+    }
+
+    .rule-corner {
+      cursor: default;
+      left: 0;
+      top: 0;
+      position: absolute;
+      width: 23px;
+      height: 23px;
+      z-index: 9999;
+      background-color: #2b2b2b;
+    }
+
+
+    .page-container {
+      position: absolute;
+      z-index: 2;
+
+      left: 0;
+      top: 0;
+      -webkit-transform-origin: top left;
+      transform-origin: top left;
+      background-color: #202020;
+      font-size: 0;
+      line-height: 0;
+    }
+
+    .page-container:focus {
+      outline: none
+    }
+  </style>
+  <script src="ruler.js"></script>
+</head>
+
+<body>
+  <div class="container">
+    <!-- Left Sidebar -->
+    <div class="sidebar">
+      <!-- PATH Module -->
+      <div class="module">
+        <div class="module-header">
+          <div class="module-title">PATH</div>
+        </div>
+        <textarea id="pathTextarea" class="path-textarea"
+          placeholder="Enter SVG path data (e.g., M 10 10 L 90 90)">M 50 50 L 150 50 L 150 150 L 50 150 Z</textarea>
+      </div>
+
+      <!-- COMMANDS Module -->
+      <div class="module">
+        <div class="module-header">
+          <div class="module-title">COMMANDS</div>
+          <button id="commandsMenuBtn" class="module-menu-btn" title="Add Command">⋯</button>
+          <div id="commandsHeaderMenu" class="dropdown-menu"></div>
+        </div>
+        <div id="commandsList" class="commands-list"></div>
+      </div>
+    </div>
+
+    <!-- Right Editor Area -->
+    <div id="workspace" class="editor-area workspace" tabindex="-1">
+      <div class="rule-wrapper">
+        <div class="ruler-guides-container" tabindex="-1">
+          <div class="ruler" style="width: 100%;">
+            <div class="ruler-canvas-container" style="width: 100%;">
+              <canvas class="ruler-canvas ruler-canvas1" style="height: 24px;" width="944" height="48"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="ruler-guides-container" tabindex="-1">
+          <div class="ruler" style="height: 100%;">
+            <div class="ruler-canvas-container" style="height: 100%;">
+              <canvas class="ruler-canvas ruler-canvas2" style="width: 24px;" width="48" height="1396"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="rule-corner"></div>
+      </div>
+      <div class="canvas-container page-container" style="transform: translate(0px, 0px);">
+        <svg id="svgCanvas" viewBox="0 0 400 400">
+          <defs>
+            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <rect width="20" height="20" fill="none" />
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--grid-color)" stroke-width="0.5" />
+            </pattern>
+          </defs>
+          <g id="gridGroup" style="display: none;">
+            <rect width="100%" height="100%" fill="url(#grid)" />
+          </g>
+          <g id="mainGroup">
+            <path id="mainPath" class="path-element" d="" />
+            <g id="controlPoints"></g>
+          </g>
+        </svg>
+      </div>
+
+      <!-- History Controls (Top Right) -->
+      <div class="history-controls">
+        <button id="undoBtn" class="control-btn" title="Undo (Ctrl+Z)" disabled>↶</button>
+        <button id="redoBtn" class="control-btn" title="Redo (Ctrl+Y)" disabled>↷</button>
+      </div>
+
+      <!-- View Controls (Bottom Right) -->
+      <div class="view-controls">
+        <button id="gridBtn" class="control-btn" title="Toggle Grid">#</button>
+        <button id="zoomInBtn" class="control-btn" title="Zoom In">+</button>
+        <button id="zoomOutBtn" class="control-btn" title="Zoom Out">−</button>
+        <button id="actualSizeBtn" class="control-btn" title="Actual Size">◻</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * SVG Path Editor with Dark Theme
+     * Supports M, L, H, V, C, S, Q, T, A, Z commands
+     */
+
+    // Command type definitions
+    const COMMAND_TYPES = {
+      'M': { name: 'M Move to', params: ['x', 'y'], defaults: [0, 0] },
+      'L': { name: 'L Line to', params: ['x', 'y'], defaults: [0, 0] },
+      'V': { name: 'V Vertical Line to', params: ['y'], defaults: [0] },
+      'H': { name: 'H Horizontal Line to', params: ['x'], defaults: [0] },
+      'C': { name: 'C Curve to', params: ['x1', 'y1', 'x2', 'y2', 'x', 'y'], defaults: [0, 0, 0, 0, 0, 0] },
+      'S': { name: 'S Shorthand Curve to', params: ['x2', 'y2', 'x', 'y'], defaults: [0, 0, 0, 0] },
+      'Q': { name: 'Q Quadratic Bezier Curve to', params: ['x1', 'y1', 'x', 'y'], defaults: [0, 0, 0, 0] },
+      'T': { name: 'T Shorthand Quadratic Bezier Curve to', params: ['x', 'y'], defaults: [0, 0] },
+      'A': { name: 'A Elliptical Arc', params: ['rx', 'ry', 'rotation', 'large-arc', 'sweep', 'x', 'y'], defaults: [10, 10, 0, 0, 0, 0, 0] },
+      'Z': { name: 'Z Close Path', params: [], defaults: [] }
+    };
+
+    // Application state
+    const state = {
+      pathData: '',
+      commands: [],
+      selectedCommands: new Set(),
+      selectedPoints: new Set(),
+      pointToCommandMap: new Map(), // Maps pointId to cmdIndex
+      commandToPointsMap: new Map(), // Maps cmdIndex to array of pointIds
+      history: [],
+      historyIndex: -1,
+      zoom: 1,
+      pan: { x: 0, y: 0 },
+      gridVisible: false,
+      draggingPoint: null,
+      isPanning: false,
+      panStart: { x: 0, y: 0 }
+    };
+
+    // DOM elements
+    const elements = {
+      pathTextarea: document.getElementById('pathTextarea'),
+      commandsList: document.getElementById('commandsList'),
+      commandsMenuBtn: document.getElementById('commandsMenuBtn'),
+      commandsHeaderMenu: document.getElementById('commandsHeaderMenu'),
+      svgCanvas: document.getElementById('svgCanvas'),
+      mainPath: document.getElementById('mainPath'),
+      controlPoints: document.getElementById('controlPoints'),
+      gridGroup: document.getElementById('gridGroup'),
+      mainGroup: document.getElementById('mainGroup'),
+      undoBtn: document.getElementById('undoBtn'),
+      redoBtn: document.getElementById('redoBtn'),
+      gridBtn: document.getElementById('gridBtn'),
+      zoomInBtn: document.getElementById('zoomInBtn'),
+      zoomOutBtn: document.getElementById('zoomOutBtn'),
+      actualSizeBtn: document.getElementById('actualSizeBtn')
+    };
+
+    /**
+     * Parse SVG path string into command objects
+     */
+    function parsePath(pathString) {
+      if (!pathString || pathString.trim() === '') {
+        return [];
+      }
+
+      const commands = [];
+      const commandRegex = /([MmLlHhVvCcSsQqTtAaZz])((?:\s*-?\d+\.?\d*(?:e[+-]?\d+)?\s*,?\s*)*)/g;
+      let match;
+
+      try {
+        while ((match = commandRegex.exec(pathString)) !== null) {
+          const type = match[1];
+          const paramsStr = match[2].trim();
+
+          if (type.toUpperCase() === 'Z') {
+            commands.push({ type, params: [] });
+            continue;
+          }
+
+          if (!paramsStr) {
+            continue;
+          }
+
+          const params = paramsStr.split(/[\s,]+/).filter(p => p).map(Number);
+
+          const paramCounts = {
+            'M': 2, 'm': 2, 'L': 2, 'l': 2,
+            'H': 1, 'h': 1, 'V': 1, 'v': 1,
+            'C': 6, 'c': 6, 'S': 4, 's': 4,
+            'Q': 4, 'q': 4, 'T': 2, 't': 2,
+            'A': 7, 'a': 7
+          };
+
+          const paramCount = paramCounts[type];
+
+          if (paramCount) {
+            for (let i = 0; i < params.length; i += paramCount) {
+              const commandParams = params.slice(i, i + paramCount);
+              if (commandParams.length === paramCount) {
+                commands.push({ type, params: commandParams });
+              }
+            }
+          }
+        }
+
+        return commands;
+      } catch (e) {
+        console.error('Parse error:', e);
+        return [];
+      }
+    }
+
+    /**
+     * Convert command objects back to path string
+     */
+    function commandsToPath(commands) {
+      return commands.map(cmd => {
+        if (cmd.type.toUpperCase() === 'Z') {
+          return cmd.type;
+        }
+        return cmd.type + ' ' + cmd.params.join(' ');
+      }).join(' ');
+    }
+
+    /**
+     * Update the path from textarea
+     */
+    function updatePathFromTextarea() {
+      const pathString = elements.pathTextarea.value;
+      const commands = parsePath(pathString);
+
+      state.pathData = pathString;
+      state.commands = commands;
+      state.selectedCommands.clear();
+
+      saveHistory();
+      renderCommands();
+      renderPath();
+    }
+
+    /**
+     * Render commands list in sidebar
+     */
+    function renderCommands() {
+      elements.commandsList.innerHTML = '';
+
+      state.commands.forEach((cmd, index) => {
+        const row = document.createElement('div');
+        row.className = 'command-row';
+        if (state.selectedCommands.has(index)) {
+          row.classList.add('selected');
+        }
+        row.dataset.index = index;
+
+        // Command label
+        const label = document.createElement('span');
+        label.className = 'command-label';
+        label.textContent = cmd.type;
+        row.appendChild(label);
+
+        // Parameters container
+        const paramsContainer = document.createElement('div');
+        paramsContainer.className = 'command-params';
+
+        const cmdType = COMMAND_TYPES[cmd.type.toUpperCase()];
+        if (cmdType && cmdType.params.length > 0) {
+          cmd.params.forEach((param, paramIndex) => {
+            const paramGroup = document.createElement('div');
+            paramGroup.className = 'param-group';
+
+            const paramLabel = document.createElement('span');
+            paramLabel.className = 'param-label';
+            paramLabel.textContent = cmdType.params[paramIndex];
+            paramGroup.appendChild(paramLabel);
+
+            if (cmd.type.toUpperCase() === 'A' && (paramIndex === 3 || paramIndex === 4)) {
+              const checkbox = document.createElement('input');
+              checkbox.type = 'checkbox';
+              checkbox.className = 'param-checkbox';
+              checkbox.checked = param === 1;
+              checkbox.dataset.cmdIndex = index;
+              checkbox.dataset.paramIndex = paramIndex;
+              checkbox.addEventListener('change', handleParamChange);
+              checkbox.addEventListener('click', (e) => e.stopPropagation());
+              paramGroup.appendChild(checkbox);
+            } else {
+              const input = createParamInput(param, index, paramIndex);
+              paramGroup.appendChild(input);
+            }
+
+            paramsContainer.appendChild(paramGroup);
+          });
+        }
+
+        row.appendChild(paramsContainer);
+
+        // Menu button
+        const menuBtn = document.createElement('button');
+        menuBtn.className = 'command-menu-btn';
+        menuBtn.textContent = '⋮';
+        menuBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleCommandMenu(index, e);
+        });
+        row.appendChild(menuBtn);
+
+        // Click handler for row selection
+        row.addEventListener('click', (e) => {
+          if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') {
+            return;
+          }
+          handleCommandRowClick(index, e.shiftKey);
+        });
+
+        elements.commandsList.appendChild(row);
+      });
+    }
+
+    /**
+     * Handle command row selection
+     */
+    function handleCommandRowClick(index, isShiftClick) {
+      if (isShiftClick) {
+        // Toggle selection
+        if (state.selectedCommands.has(index)) {
+          state.selectedCommands.delete(index);
+          // Deselect points belonging to this command
+          const pointIds = state.commandToPointsMap.get(index) || [];
+          pointIds.forEach(pointId => {
+            // Only deselect if no other selected command owns this point
+            let shouldKeep = false;
+            state.selectedCommands.forEach(cmdIdx => {
+              const cmdPoints = state.commandToPointsMap.get(cmdIdx) || [];
+              if (cmdPoints.includes(pointId)) {
+                shouldKeep = true;
+              }
+            });
+            if (!shouldKeep) {
+              state.selectedPoints.delete(pointId);
+            }
+          });
+        } else {
+          state.selectedCommands.add(index);
+          // Select points belonging to this command
+          const pointIds = state.commandToPointsMap.get(index) || [];
+          pointIds.forEach(pointId => state.selectedPoints.add(pointId));
+        }
+      } else {
+        // Single selection
+        if (state.selectedCommands.has(index) && state.selectedCommands.size === 1) {
+          state.selectedCommands.clear();
+          state.selectedPoints.clear();
+        } else {
+          state.selectedCommands.clear();
+          state.selectedPoints.clear();
+          state.selectedCommands.add(index);
+          // Select points belonging to this command
+          const pointIds = state.commandToPointsMap.get(index) || [];
+          pointIds.forEach(pointId => state.selectedPoints.add(pointId));
+        }
+      }
+      renderCommands();
+      renderControlPoints();
+    }
+
+    /**
+     * Create parameter input element
+     */
+    function createParamInput(value, cmdIndex, paramIndex) {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'param-input';
+      input.value = value;
+      input.dataset.cmdIndex = cmdIndex;
+      input.dataset.paramIndex = paramIndex;
+
+      input.addEventListener('input', handleParamChange);
+      input.addEventListener('keydown', handleParamKeydown);
+      input.addEventListener('click', (e) => e.stopPropagation());
+
+      return input;
+    }
+
+    /**
+     * Handle parameter input change
+     */
+    function handleParamChange(e) {
+      const cmdIndex = parseInt(e.target.dataset.cmdIndex);
+      const paramIndex = parseInt(e.target.dataset.paramIndex);
+
+      if (e.target.type === 'checkbox') {
+        state.commands[cmdIndex].params[paramIndex] = e.target.checked ? 1 : 0;
+      } else {
+        const value = parseFloat(e.target.value);
+        if (!isNaN(value)) {
+          state.commands[cmdIndex].params[paramIndex] = value;
+        }
+      }
+
+      updatePathFromCommands();
+    }
+
+    /**
+     * Handle keyboard shortcuts for parameter inputs
+     */
+    function handleParamKeydown(e) {
+      const input = e.target;
+      let currentValue = parseFloat(input.value);
+      if (isNaN(currentValue)) currentValue = 0;
+
+      let delta = 0;
+
+      if (e.key === 'ArrowUp') {
+        if (e.shiftKey) {
+          delta = 10;
+        } else if (e.altKey) {
+          delta = 0.1;
+        } else {
+          delta = 1;
+        }
+        e.preventDefault();
+      } else if (e.key === 'ArrowDown') {
+        if (e.shiftKey) {
+          delta = -10;
+        } else if (e.altKey) {
+          delta = -0.1;
+        } else {
+          delta = -1;
+        }
+        e.preventDefault();
+      }
+
+      if (delta !== 0) {
+        const newValue = Math.round((currentValue + delta) * 100) / 100;
+        input.value = newValue;
+
+        const cmdIndex = parseInt(input.dataset.cmdIndex);
+        const paramIndex = parseInt(input.dataset.paramIndex);
+        state.commands[cmdIndex].params[paramIndex] = newValue;
+
+        updatePathFromCommands();
+      }
+    }
+
+    /**
+     * Update path from commands array
+     */
+    function updatePathFromCommands(skipHistory = false) {
+      state.pathData = commandsToPath(state.commands);
+      elements.pathTextarea.value = state.pathData;
+
+      if (!skipHistory) {
+        saveHistory();
+      }
+
+      renderPath();
+    }
+
+    /**
+     * Toggle command menu (per-row)
+     */
+    function toggleCommandMenu(index, event) {
+      closeAllMenus();
+
+      const menu = document.createElement('div');
+      menu.className = 'dropdown-menu visible';
+      menu.style.position = 'fixed';
+      menu.style.left = event.clientX + 'px';
+      menu.style.top = event.clientY + 'px';
+
+      const duplicateItem = document.createElement('div');
+      duplicateItem.className = 'dropdown-item';
+      duplicateItem.textContent = 'Duplicate';
+      duplicateItem.addEventListener('click', () => {
+        duplicateCommand(index);
+        closeAllMenus();
+      });
+      menu.appendChild(duplicateItem);
+
+      const deleteItem = document.createElement('div');
+      deleteItem.className = 'dropdown-item';
+      deleteItem.textContent = 'Delete';
+      deleteItem.addEventListener('click', () => {
+        deleteCommand(index);
+        closeAllMenus();
+      });
+      menu.appendChild(deleteItem);
+
+      document.body.appendChild(menu);
+
+      // Close menu when clicking outside
+      setTimeout(() => {
+        document.addEventListener('click', closeAllMenus, { once: true });
+      }, 0);
+    }
+
+    /**
+     * Duplicate command
+     */
+    function duplicateCommand(index) {
+      const cmd = state.commands[index];
+      const newCmd = {
+        type: cmd.type,
+        params: [...cmd.params]
+      };
+      state.commands.splice(index + 1, 0, newCmd);
+
+      updatePathFromCommands();
+      renderCommands();
+    }
+
+    /**
+     * Delete command
+     */
+    function deleteCommand(index) {
+      state.commands.splice(index, 1);
+      state.selectedCommands.delete(index);
+
+      // Adjust selected indices
+      const newSelected = new Set();
+      state.selectedCommands.forEach(idx => {
+        if (idx > index) {
+          newSelected.add(idx - 1);
+        } else if (idx < index) {
+          newSelected.add(idx);
+        }
+      });
+      state.selectedCommands = newSelected;
+
+      updatePathFromCommands();
+      renderCommands();
+    }
+
+    /**
+     * Build and show commands header menu
+     */
+    function buildCommandsHeaderMenu() {
+      const menu = elements.commandsHeaderMenu;
+      menu.innerHTML = '';
+
+      Object.entries(COMMAND_TYPES).forEach(([key, value]) => {
+        const item = document.createElement('div');
+        item.className = 'dropdown-item';
+
+        const cmdKey = document.createElement('span');
+        cmdKey.className = 'cmd-key';
+        cmdKey.textContent = key;
+        item.appendChild(cmdKey);
+
+        const cmdName = document.createElement('span');
+        cmdName.textContent = value.name.substring(2); // Remove the "X " prefix
+        item.appendChild(cmdName);
+
+        item.addEventListener('click', () => {
+          insertCommand(key);
+          closeAllMenus();
+        });
+
+        menu.appendChild(item);
+      });
+    }
+
+    /**
+     * Insert a new command
+     */
+    function insertCommand(cmdType) {
+      const cmdDef = COMMAND_TYPES[cmdType];
+      let insertIndex = state.commands.length;
+      let params = [...cmdDef.defaults];
+
+      // Find first selected row
+      if (state.selectedCommands.size > 0) {
+        const selectedIndices = Array.from(state.selectedCommands).sort((a, b) => a - b);
+        insertIndex = selectedIndices[0] + 1;
+
+        // Try to get coordinates from selected row
+        const selectedCmd = state.commands[selectedIndices[0]];
+        const endPos = getCommandEndPosition(selectedCmd, selectedIndices[0]);
+
+        if (endPos) {
+          // Use end position as starting point for new command
+          if (cmdType === 'M' || cmdType === 'L' || cmdType === 'T') {
+            params[0] = endPos.x;
+            params[1] = endPos.y;
+          } else if (cmdType === 'H') {
+            params[0] = endPos.x;
+          } else if (cmdType === 'V') {
+            params[0] = endPos.y;
+          } else if (cmdType === 'C') {
+            params[4] = endPos.x;
+            params[5] = endPos.y;
+          } else if (cmdType === 'S') {
+            params[2] = endPos.x;
+            params[3] = endPos.y;
+          } else if (cmdType === 'Q') {
+            params[2] = endPos.x;
+            params[3] = endPos.y;
+          } else if (cmdType === 'A') {
+            params[5] = endPos.x;
+            params[6] = endPos.y;
+          }
+        }
+      }
+
+      const newCmd = {
+        type: cmdType,
+        params: params
+      };
+
+      state.commands.splice(insertIndex, 0, newCmd);
+      state.selectedCommands.clear();
+      state.selectedCommands.add(insertIndex);
+
+      updatePathFromCommands();
+      renderCommands();
+
+      // Focus first input of new command
+      setTimeout(() => {
+        const newRow = document.querySelector(`.command-row[data-index="${insertIndex}"]`);
+        if (newRow) {
+          const firstInput = newRow.querySelector('.param-input');
+          if (firstInput) {
+            firstInput.focus();
+            firstInput.select();
+          }
+        }
+      }, 0);
+    }
+
+    /**
+     * Get end position of a command
+     */
+    function getCommandEndPosition(cmd, index) {
+      const pos = getAbsolutePosition(state.commands, index);
+      return pos;
+    }
+
+    /**
+     * Close all dropdown menus
+     */
+    function closeAllMenus() {
+      elements.commandsHeaderMenu.classList.remove('visible');
+      document.querySelectorAll('.dropdown-menu.visible').forEach(menu => {
+        if (menu !== elements.commandsHeaderMenu) {
+          menu.remove();
+        }
+      });
+    }
+
+    /**
+     * Render path on SVG canvas
+     */
+    function renderPath() {
+      elements.mainPath.setAttribute('d', state.pathData);
+      renderControlPoints();
+    }
+
+    /**
+     * Get absolute position for a command
+     */
+    function getAbsolutePosition(commands, index) {
+      let x = 0, y = 0;
+
+      for (let i = 0; i <= index; i++) {
+        const cmd = commands[i];
+        const type = cmd.type;
+        const isRelative = type === type.toLowerCase();
+        const typeUpper = type.toUpperCase();
+
+        if (typeUpper === 'M' || typeUpper === 'L' || typeUpper === 'T') {
+          if (isRelative && i > 0) {
+            x += cmd.params[0];
+            y += cmd.params[1];
+          } else {
+            x = cmd.params[0];
+            y = cmd.params[1];
+          }
+        } else if (typeUpper === 'H') {
+          if (isRelative) {
+            x += cmd.params[0];
+          } else {
+            x = cmd.params[0];
+          }
+        } else if (typeUpper === 'V') {
+          if (isRelative) {
+            y += cmd.params[0];
+          } else {
+            y = cmd.params[0];
+          }
+        } else if (typeUpper === 'C') {
+          if (isRelative) {
+            x += cmd.params[4];
+            y += cmd.params[5];
+          } else {
+            x = cmd.params[4];
+            y = cmd.params[5];
+          }
+        } else if (typeUpper === 'S') {
+          if (isRelative) {
+            x += cmd.params[2];
+            y += cmd.params[3];
+          } else {
+            x = cmd.params[2];
+            y = cmd.params[3];
+          }
+        } else if (typeUpper === 'Q') {
+          if (isRelative) {
+            x += cmd.params[2];
+            y += cmd.params[3];
+          } else {
+            x = cmd.params[2];
+            y = cmd.params[3];
+          }
+        } else if (typeUpper === 'A') {
+          if (isRelative) {
+            x += cmd.params[5];
+            y += cmd.params[6];
+          } else {
+            x = cmd.params[5];
+            y = cmd.params[6];
+          }
+        }
+      }
+
+      return { x, y };
+    }
+
+    /**
+     * Render control points for dragging
+     */
+    function renderControlPoints() {
+      elements.controlPoints.innerHTML = '';
+
+      // Clear and rebuild the mapping structures
+      state.pointToCommandMap.clear();
+      state.commandToPointsMap.clear();
+
+      let currentX = 0, currentY = 0;
+      let pointIndex = 0;
+
+      state.commands.forEach((cmd, cmdIndex) => {
+        // Initialize points array for this command
+        state.commandToPointsMap.set(cmdIndex, []);
+        const type = cmd.type;
+        const isRelative = type === type.toLowerCase();
+        const typeUpper = type.toUpperCase();
+
+        const prevPos = getAbsolutePosition(state.commands, cmdIndex - 1);
+        if (cmdIndex > 0) {
+          currentX = prevPos.x;
+          currentY = prevPos.y;
+        }
+
+        if (typeUpper === 'M' || typeUpper === 'L' || typeUpper === 'T') {
+          const x = isRelative ? currentX + cmd.params[0] : cmd.params[0];
+          const y = isRelative ? currentY + cmd.params[1] : cmd.params[1];
+
+          const pid = pointIndex++;
+          createControlPoint(x, y, cmdIndex, 0, 'point', pid);
+          registerPointToCommand(pid, cmdIndex);
+
+          currentX = x;
+          currentY = y;
+        } else if (typeUpper === 'C') {
+          const cp1x = isRelative ? currentX + cmd.params[0] : cmd.params[0];
+          const cp1y = isRelative ? currentY + cmd.params[1] : cmd.params[1];
+          const cp2x = isRelative ? currentX + cmd.params[2] : cmd.params[2];
+          const cp2y = isRelative ? currentY + cmd.params[3] : cmd.params[3];
+          const x = isRelative ? currentX + cmd.params[4] : cmd.params[4];
+          const y = isRelative ? currentY + cmd.params[5] : cmd.params[5];
+
+          createHandleLine(currentX, currentY, cp1x, cp1y);
+          createHandleLine(x, y, cp2x, cp2y);
+
+          const pid1 = pointIndex++;
+          const pid2 = pointIndex++;
+          const pid3 = pointIndex++;
+          createControlPoint(cp1x, cp1y, cmdIndex, 0, 'handle', pid1);
+          createControlPoint(cp2x, cp2y, cmdIndex, 2, 'handle', pid2);
+          createControlPoint(x, y, cmdIndex, 4, 'point', pid3);
+          registerPointToCommand(pid1, cmdIndex);
+          registerPointToCommand(pid2, cmdIndex);
+          registerPointToCommand(pid3, cmdIndex);
+
+          currentX = x;
+          currentY = y;
+        } else if (typeUpper === 'Q') {
+          const cpx = isRelative ? currentX + cmd.params[0] : cmd.params[0];
+          const cpy = isRelative ? currentY + cmd.params[1] : cmd.params[1];
+          const x = isRelative ? currentX + cmd.params[2] : cmd.params[2];
+          const y = isRelative ? currentY + cmd.params[3] : cmd.params[3];
+
+          createHandleLine(currentX, currentY, cpx, cpy);
+          createHandleLine(x, y, cpx, cpy);
+
+          const pid1 = pointIndex++;
+          const pid2 = pointIndex++;
+          createControlPoint(cpx, cpy, cmdIndex, 0, 'handle', pid1);
+          createControlPoint(x, y, cmdIndex, 2, 'point', pid2);
+          registerPointToCommand(pid1, cmdIndex);
+          registerPointToCommand(pid2, cmdIndex);
+
+          currentX = x;
+          currentY = y;
+        } else if (typeUpper === 'H') {
+          const x = isRelative ? currentX + cmd.params[0] : cmd.params[0];
+          const pid = pointIndex++;
+          createControlPoint(x, currentY, cmdIndex, 0, 'point', pid);
+          registerPointToCommand(pid, cmdIndex);
+          currentX = x;
+        } else if (typeUpper === 'V') {
+          const y = isRelative ? currentY + cmd.params[0] : cmd.params[0];
+          const pid = pointIndex++;
+          createControlPoint(currentX, y, cmdIndex, 0, 'point', pid);
+          registerPointToCommand(pid, cmdIndex);
+          currentY = y;
+        } else if (typeUpper === 'A') {
+          const x = isRelative ? currentX + cmd.params[5] : cmd.params[5];
+          const y = isRelative ? currentY + cmd.params[6] : cmd.params[6];
+          const pid = pointIndex++;
+          createControlPoint(x, y, cmdIndex, 5, 'point', pid);
+          registerPointToCommand(pid, cmdIndex);
+          currentX = x;
+          currentY = y;
+        }
+      });
+    }
+
+    /**
+     * Register point to command mapping
+     */
+    function registerPointToCommand(pointId, cmdIndex) {
+      state.pointToCommandMap.set(pointId, cmdIndex);
+      const points = state.commandToPointsMap.get(cmdIndex) || [];
+      points.push(pointId);
+      state.commandToPointsMap.set(cmdIndex, points);
+    }
+
+    /**
+     * Create a handle line
+     */
+    function createHandleLine(x1, y1, x2, y2) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('class', 'control-handle-line');
+      line.setAttribute('x1', x1);
+      line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2);
+      line.setAttribute('y2', y2);
+      elements.controlPoints.appendChild(line);
+    }
+
+    /**
+     * Create a control point
+     */
+    function createControlPoint(x, y, cmdIndex, paramIndex, pointType, pointId) {
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('class', 'control-point');
+      g.dataset.cmdIndex = cmdIndex;
+      g.dataset.paramIndex = paramIndex;
+      g.dataset.pointType = pointType;
+      g.dataset.pointId = pointId;
+
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('class', pointType === 'handle' ? 'control-handle' : 'control-point-circle');
+      if (state.selectedPoints.has(pointId)) {
+        circle.classList.add('selected');
+      }
+      circle.setAttribute('cx', x);
+      circle.setAttribute('cy', y);
+      circle.setAttribute('r', pointType === 'handle' ? 4 : 5);
+
+      g.appendChild(circle);
+      elements.controlPoints.appendChild(g);
+
+      g.addEventListener('mousedown', startDragPoint);
+      g.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handlePointClick(pointId, e.shiftKey);
+      });
+    }
+
+    /**
+     * Handle point click for selection
+     */
+    function handlePointClick(pointId, isShiftClick) {
+      if (isShiftClick) {
+        if (state.selectedPoints.has(pointId)) {
+          state.selectedPoints.delete(pointId);
+          // Check if we should deselect the corresponding command
+          const cmdIndex = state.pointToCommandMap.get(pointId);
+          if (cmdIndex !== undefined) {
+            const cmdPoints = state.commandToPointsMap.get(cmdIndex) || [];
+            const hasSelectedPoints = cmdPoints.some(pid => state.selectedPoints.has(pid));
+            if (!hasSelectedPoints) {
+              state.selectedCommands.delete(cmdIndex);
+            }
+          }
+        } else {
+          state.selectedPoints.add(pointId);
+          // Select the corresponding command
+          const cmdIndex = state.pointToCommandMap.get(pointId);
+          if (cmdIndex !== undefined) {
+            state.selectedCommands.add(cmdIndex);
+          }
+        }
+      } else {
+        if (state.selectedPoints.has(pointId) && state.selectedPoints.size === 1) {
+          state.selectedPoints.clear();
+          state.selectedCommands.clear();
+        } else {
+          state.selectedPoints.clear();
+          state.selectedCommands.clear();
+          state.selectedPoints.add(pointId);
+          // Select the corresponding command
+          const cmdIndex = state.pointToCommandMap.get(pointId);
+          if (cmdIndex !== undefined) {
+            state.selectedCommands.add(cmdIndex);
+          }
+        }
+      }
+      renderControlPoints();
+      renderCommands();
+    }
+
+    /**
+     * Start dragging a control point
+     */
+    function startDragPoint(e) {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const point = e.currentTarget;
+      state.draggingPoint = {
+        element: point,
+        cmdIndex: parseInt(point.dataset.cmdIndex),
+        paramIndex: parseInt(point.dataset.paramIndex),
+        pointType: point.dataset.pointType
+      };
+
+      document.addEventListener('mousemove', dragPoint);
+      document.addEventListener('mouseup', stopDragPoint);
+    }
+
+    /**
+     * Drag a control point
+     */
+    function dragPoint(e) {
+      if (!state.draggingPoint) return;
+
+      const svg = elements.svgCanvas;
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+
+      const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+
+      const cmd = state.commands[state.draggingPoint.cmdIndex];
+      const paramIndex = state.draggingPoint.paramIndex;
+      const isRelative = cmd.type === cmd.type.toLowerCase();
+
+      let newX = svgP.x;
+      let newY = svgP.y;
+
+      if (isRelative && state.draggingPoint.cmdIndex > 0) {
+        const prevPos = getAbsolutePosition(state.commands, state.draggingPoint.cmdIndex - 1);
+        newX -= prevPos.x;
+        newY -= prevPos.y;
+      }
+
+      const typeUpper = cmd.type.toUpperCase();
+
+      if (typeUpper === 'M' || typeUpper === 'L' || typeUpper === 'T') {
+        cmd.params[0] = Math.round(newX * 100) / 100;
+        cmd.params[1] = Math.round(newY * 100) / 100;
+      } else if (typeUpper === 'H') {
+        cmd.params[0] = Math.round(newX * 100) / 100;
+      } else if (typeUpper === 'V') {
+        cmd.params[0] = Math.round(newY * 100) / 100;
+      } else if (typeUpper === 'C' || typeUpper === 'Q') {
+        cmd.params[paramIndex] = Math.round(newX * 100) / 100;
+        cmd.params[paramIndex + 1] = Math.round(newY * 100) / 100;
+      } else if (typeUpper === 'S') {
+        cmd.params[paramIndex] = Math.round(newX * 100) / 100;
+        cmd.params[paramIndex + 1] = Math.round(newY * 100) / 100;
+      } else if (typeUpper === 'A') {
+        cmd.params[paramIndex] = Math.round(newX * 100) / 100;
+        cmd.params[paramIndex + 1] = Math.round(newY * 100) / 100;
+      }
+
+      updatePathFromCommands(true);
+      renderCommands();
+    }
+
+    /**
+     * Stop dragging
+     */
+    function stopDragPoint() {
+      if (state.draggingPoint) {
+        saveHistory();
+        state.draggingPoint = null;
+      }
+      document.removeEventListener('mousemove', dragPoint);
+      document.removeEventListener('mouseup', stopDragPoint);
+    }
+
+    /**
+     * History management
+     */
+    function saveHistory() {
+      const currentState = JSON.stringify({
+        pathData: state.pathData,
+        commands: state.commands
+      });
+
+      if (state.historyIndex < state.history.length - 1) {
+        state.history = state.history.slice(0, state.historyIndex + 1);
+      }
+
+      if (state.history.length > 0 && state.history[state.history.length - 1] === currentState) {
+        return;
+      }
+
+      state.history.push(currentState);
+      state.historyIndex = state.history.length - 1;
+
+      if (state.history.length > 50) {
+        state.history.shift();
+        state.historyIndex--;
+      }
+
+      updateHistoryButtons();
+    }
+
+    /**
+     * Undo
+     */
+    function undo() {
+      if (state.historyIndex > 0) {
+        state.historyIndex--;
+        restoreHistoryState();
+      }
+    }
+
+    /**
+     * Redo
+     */
+    function redo() {
+      if (state.historyIndex < state.history.length - 1) {
+        state.historyIndex++;
+        restoreHistoryState();
+      }
+    }
+
+    /**
+     * Restore state from history
+     */
+    function restoreHistoryState() {
+      const historyState = JSON.parse(state.history[state.historyIndex]);
+      state.pathData = historyState.pathData;
+      state.commands = historyState.commands;
+
+      elements.pathTextarea.value = state.pathData;
+      renderCommands();
+      renderPath();
+      updateHistoryButtons();
+    }
+
+    /**
+     * Update history buttons
+     */
+    function updateHistoryButtons() {
+      elements.undoBtn.disabled = state.historyIndex <= 0;
+      elements.redoBtn.disabled = state.historyIndex >= state.history.length - 1;
+    }
+
+    /**
+     * View controls
+     */
+    function toggleGrid() {
+      state.gridVisible = !state.gridVisible;
+      elements.gridGroup.style.display = state.gridVisible ? 'block' : 'none';
+      elements.gridBtn.classList.toggle('active', state.gridVisible);
+    }
+
+    function zoomIn() {
+      setZoom(window.appState.zoom + (window.appState.zoom >= 1 ? 1 : 0.25));
+    }
+
+    function zoomOut() {
+      setZoom(window.appState.zoom - (window.appState.zoom > 1 ? 1 : 0.25));
+    }
+
+    function resetView() {
+      setZoom(1);
+    }
+
+    /**
+     * Pan functionality
+     */
+    function startPan(e) {
+      if (e.button === 1 || (e.button === 0 && (e.ctrlKey || e.metaKey))) {
+        e.preventDefault();
+        state.isPanning = true;
+        state.panStart = { x: e.clientX - state.pan.x, y: e.clientY - state.pan.y };
+        elements.svgCanvas.classList.add('dragging');
+
+        document.addEventListener('mousemove', doPan);
+        document.addEventListener('mouseup', stopPan);
+      }
+    }
+
+    function doPan(e) {
+      if (state.isPanning) {
+        state.pan.x = e.clientX - state.panStart.x;
+        state.pan.y = e.clientY - state.panStart.y;
+        applyTransform();
+      }
+    }
+
+    function stopPan() {
+      state.isPanning = false;
+      elements.svgCanvas.classList.remove('dragging');
+      document.removeEventListener('mousemove', doPan);
+      document.removeEventListener('mouseup', stopPan);
+    }
+
+    /**
+     * Event listeners
+     */
+    elements.pathTextarea.addEventListener('blur', updatePathFromTextarea);
+    elements.pathTextarea.addEventListener('input', debounce(updatePathFromTextarea, 500));
+
+    elements.commandsMenuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      elements.commandsHeaderMenu.classList.toggle('visible');
+
+      if (elements.commandsHeaderMenu.classList.contains('visible')) {
+        const rect = elements.commandsMenuBtn.getBoundingClientRect();
+        elements.commandsHeaderMenu.style.position = 'fixed';
+        elements.commandsHeaderMenu.style.right = (window.innerWidth - rect.right) + 'px';
+        elements.commandsHeaderMenu.style.top = (rect.bottom + 4) + 'px';
+      }
+    });
+
+    elements.undoBtn.addEventListener('click', undo);
+    elements.redoBtn.addEventListener('click', redo);
+    elements.gridBtn.addEventListener('click', toggleGrid);
+    elements.zoomInBtn.addEventListener('click', zoomIn);
+    elements.zoomOutBtn.addEventListener('click', zoomOut);
+    elements.actualSizeBtn.addEventListener('click', resetView);
+
+    elements.svgCanvas.addEventListener('mousedown', startPan);
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.dropdown-menu') && !e.target.closest('.module-menu-btn') && !e.target.closest('.command-menu-btn')) {
+        closeAllMenus();
+      }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        redo();
+      }
+    });
+
+    /**
+     * Utility: debounce
+     */
+    function debounce(func, wait) {
+      let timeout;
+      return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+      };
+    }
+
+    /**
+     * Initialize
+     */
+    function init() {
+      buildCommandsHeaderMenu();
+      updatePathFromTextarea();
+      updateHistoryButtons();
+    }
+
+    init();
+  </script>
+  <script>
+    const workspaceElem = document.querySelector('.workspace');
+    const pageContainerElem = document.querySelector('.page-container');
+
+    // Global application state
+    window.appState = {
+      zoom: 1,
+      offsetX: 0,
+      offsetY: 0,
+      minZoom: 0.25,
+      maxZoom: 10
+    };
+
+    window.cc = {};
+    // cc.findNearestNumber
+    // = cc.isInsideHorizontalBounds = cc.calcGraduationValueByCoordinateValue
+    // = cc.calcCoordinateValueByGraduationValue = cc.calcStartGraduationValue
+    // = cc.calcStartCoordinateValue = void 0
+    cc.calcStartCoordinateValue = function (e, t, o) {
+      const n = o * t
+        , i = e % n;
+      let a = 0;
+      a = i > 0 ? i - n : i;
+      return a;
+    };
+    cc.calcStartGraduationValue = function (e, t, o) {
+      const n = o * t;
+      return 0 - Math.ceil(e / n) * o;
+    };
+    cc.calcCoordinateValueByGraduationValue = function (e, t, o) {
+      const n = e * o + t;
+      return Math.round(n);
+    };
+    cc.calcGraduationValueByCoordinateValue = function (e, t, o) {
+      const n = (e - t) / o;
+      return Math.round(n);
+    };
+    cc.isInsideHorizontalBounds = function (e, t) {
+      return e >= t.left && e <= t.right;
+    };
+    cc.findNearestNumber = function (e, t) {
+      return e.reduce(((e, o) => Math.abs(e - t) > Math.abs(o - t) ? o : e));
+    };
+
+    window.getSceneInfo = () => {
+      return {
+        zeroGraduationPosition: {
+          'x': window.appState.offsetX,
+          'y': window.appState.offsetY,
+        },
+        sceneWidth: workspaceElem.offsetWidth,
+        sceneHeight: workspaceElem.offsetHeight,
+      };
+    };
+
+    /**
+     * Update the page container transform with current offset and zoom
+     */
+    function updateTransform() {
+      const { offsetX, offsetY, zoom } = window.appState;
+      pageContainerElem.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
+      pageContainerElem.setAttribute('x', String(offsetX));
+      pageContainerElem.setAttribute('y', String(offsetY));
+    }
+
+    /**
+     * Set zoom level and update everything
+     */
+    function setZoom(newZoom) {
+      const { minZoom, maxZoom } = window.appState;
+      window.appState.zoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
+      updateTransform();
+      ruler.flushRuler();
+    }
+
+    /**
+     * Update rulers after any change
+     */
+    function updateRulers() {
+      ruler.flushRuler();
+    }
+
+
+    workspaceElem.addEventListener('wheel', (e) => {
+      e.preventDefault(); // Prevent page scrolling
+
+      let { offsetX, offsetY, zoom } = window.appState;
+
+      // Define content bounds
+      let full = {
+        xmin: -200,
+        xmax: pageContainerElem.clientWidth - 23,
+        ymin: -100,
+        ymax: pageContainerElem.clientHeight - 23
+      };
+
+      // Adjust bounds based on zoom level
+      let maxX = Math.max(0, workspaceElem.clientWidth - 50);
+      let minX = Math.min(0, -full.xmax * zoom + 50);
+
+      let maxY = Math.max(0, workspaceElem.clientHeight - 50);
+      let minY = Math.min(0, -full.ymax * zoom + 50);
+
+      // Update offsets based on wheel delta
+      offsetX -= e.deltaX;
+      offsetY -= e.deltaY;
+
+      // Clamp to bounds
+      if (offsetX < minX) offsetX = minX;
+      if (offsetX > maxX) offsetX = maxX;
+      if (offsetY < minY) offsetY = minY;
+      if (offsetY > maxY) offsetY = maxY;
+
+      // Update state
+      window.appState.offsetX = offsetX;
+      window.appState.offsetY = offsetY;
+
+      // Update transform and rulers
+      updateTransform();
+      updateRulers();
+    });
+
+    // Window resize handler
+    window.addEventListener('resize', () => {
+      updateRulers();
+    });
+
+    window.onload = () => {
+      ruler.flushRuler();
+    };
+  </script>
+
+</body>
+
+</html>
