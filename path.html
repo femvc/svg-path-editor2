@@ -346,10 +346,13 @@
     }
 
     .control-btn {
+      appearance: none;
       width: 36px;
       height: 36px;
-      border: 1px solid var(--border-color);
-      background: var(--bg-dark);
+      /* border: 1px solid var(--border-color); */
+      /* background: var(--bg-dark); */
+      border: none;
+      background-color: transparent;
       color: var(--text-primary);
       border-radius: 4px;
       cursor: pointer;
@@ -424,6 +427,7 @@
       z-index: 200;
       border-width: 0px;
       height: 100vh;
+      outline: none;
 
     }
 
@@ -471,6 +475,7 @@
     }
   </style>
   <script src="ruler.js"></script>
+  <script src="to_relative.js"></script>
 </head>
 
 <body>
@@ -536,8 +541,12 @@
 
       <!-- History Controls (Top Right) -->
       <div class="history-controls">
-        <button id="undoBtn" class="control-btn" title="Undo (Ctrl+Z)" disabled>↶</button>
-        <button id="redoBtn" class="control-btn" title="Redo (Ctrl+Y)" disabled>↷</button>
+        <button id="undoBtn" class="control-btn" title="Undo (Ctrl+Z)" disabled><svg width="24" height="24" fill="currentColor" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+<path d="M6,3.6V0L0,6l6,6V8c6-.27,7.53,3.76,7.88,5.77a.27.27,0,0,0,.53,0C17.08,2.86,6,3.6,6,3.6Z"/>
+</svg></button>
+        <button id="redoBtn" class="control-btn" title="Redo (Ctrl+Y)" disabled><svg width="24" height="24" fill="currentColor" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+<path class="cls-1" d="M16,6,10,0V3.6S-1.08,2.86,1.59,13.78a.27.27,0,0,0,.53,0c.35-2,1.9-6,7.88-5.77v4Z"/>
+</svg></button>
       </div>
 
       <!-- View Controls (Bottom Right) -->
@@ -610,6 +619,7 @@
       isPanning: false,
       panStart: { x: 0, y: 0 }
     };
+    window.state = state;
 
     // DOM elements
     const elements = {
@@ -732,6 +742,13 @@
         label.className = 'type-token ' + (cmd.type === cmd.type.toUpperCase() ? '' : 'type-token-relative');
         label.textContent = cmd.type;
         row.appendChild(label);
+        label.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const index = Number(e.target.parentNode.dataset.index);
+          state.commands[index] = autoTransformCommand(state.commands, index);
+          renderCommands();
+          updatePathFromCommands();
+        });
 
         // Parameters container
         const paramsContainer = document.createElement('div');
@@ -1711,7 +1728,7 @@
       });
 
       // Update path and UI
-      updatePathFromCommands(true); // Skip history during continuous movement
+      updatePathFromCommands();
       renderCommands();
     }
 
