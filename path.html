@@ -148,6 +148,7 @@
       font-size: 12px;
       background-color: #ff800080;
     }
+
     .type-token-relative {
       background-color: #8000ff80;
     }
@@ -278,9 +279,8 @@
     }
 
     .path-element {
-      fill: none;
-      stroke: var(--path-stroke);
-      stroke-width: 1;
+      fill: #ffffff40;
+      stroke: #ffffff;
     }
 
     .control-point {
@@ -288,19 +288,19 @@
     }
 
     .control-point-circle {
-      fill: var(--point-fill);
+      fill: #ffffff;
       stroke: transparent;
       stroke-width: 2;
     }
 
     .control-point-circle.selected {
-      fill: #ffffff;
+      fill: #00aeff;
       /* fill: #ffa500; */
       /* stroke: white; */
     }
 
     .control-point-circle:hover {
-      fill: #d6d6d6;
+      opacity: 0.8;
     }
 
     .control-handle-line {
@@ -310,8 +310,8 @@
     }
 
     .control-handle {
-      fill: var(--handle-fill);
-      stroke: var(--bg-darker);
+      fill: #607D8B;
+      stroke: #c4c4c4;
       stroke-width: 2;
       cursor: pointer;
     }
@@ -464,7 +464,7 @@
       top: 0;
       -webkit-transform-origin: top left;
       transform-origin: top left;
-      background-color: #202020;
+      background-color: #666666;
       font-size: 0;
       line-height: 0;
       overflow: visible;
@@ -488,7 +488,7 @@
           <div class="module-title">PATH</div>
         </div>
         <textarea id="pathTextarea" class="path-textarea"
-          placeholder="Enter SVG path data (e.g., M 10 10 L 90 90)">M 50 50 L 150 50 L 150 150 L 50 150 Z</textarea>
+          placeholder="Enter SVG path data (e.g., M 10 10 L 90 90)">M 12 2 C 6.47715 2 2 6.47715 2 12 C 2 17.5228 6.47715 22 12 22 C 17.5228 22 22 17.5228 22 12 C 22 6.47715 17.5228 2 12 2 Z M 16.6402 8.2318 C 17.0645 8.58537 17.1218 9.21593 16.7682 9.64021 L 11.7682 15.6402 C 11.5937 15.8497 11.3411 15.9788 11.0691 15.9976 C 10.797 16.0165 10.5291 15.9234 10.3273 15.74 L 7.32733 13.0127 C 6.91868 12.6412 6.88856 12.0087 7.26007 11.6001 C 7.63157 11.1914 8.26402 11.1613 8.67268 11.5328 L 10.9002 13.5578 L 15.2318 8.35984 C 15.5854 7.93556 16.2159 7.87824 16.6402 8.2318 Z</textarea>
       </div>
 
       <!-- COMMANDS Module -->
@@ -533,7 +533,7 @@
             <rect width="100%" height="100%" fill="url(#grid)" />
           </g>
           <g id="mainGroup">
-            <path id="mainPath" class="path-element" d="" />
+            <path id="mainPath" class="path-element" stroke-width="1" d="" />
             <g id="controlPoints"></g>
           </g>
         </svg>
@@ -541,12 +541,14 @@
 
       <!-- History Controls (Top Right) -->
       <div class="history-controls">
-        <button id="undoBtn" class="control-btn" title="Undo (Ctrl+Z)" disabled><svg width="24" height="24" fill="currentColor" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-<path d="M6,3.6V0L0,6l6,6V8c6-.27,7.53,3.76,7.88,5.77a.27.27,0,0,0,.53,0C17.08,2.86,6,3.6,6,3.6Z"/>
-</svg></button>
-        <button id="redoBtn" class="control-btn" title="Redo (Ctrl+Y)" disabled><svg width="24" height="24" fill="currentColor" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-<path class="cls-1" d="M16,6,10,0V3.6S-1.08,2.86,1.59,13.78a.27.27,0,0,0,.53,0c.35-2,1.9-6,7.88-5.77v4Z"/>
-</svg></button>
+        <button id="undoBtn" class="control-btn" title="Undo (Ctrl+Z)" disabled><svg width="24" height="24"
+            fill="currentColor" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6,3.6V0L0,6l6,6V8c6-.27,7.53,3.76,7.88,5.77a.27.27,0,0,0,.53,0C17.08,2.86,6,3.6,6,3.6Z" />
+          </svg></button>
+        <button id="redoBtn" class="control-btn" title="Redo (Ctrl+Y)" disabled><svg width="24" height="24"
+            fill="currentColor" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+            <path class="cls-1" d="M16,6,10,0V3.6S-1.08,2.86,1.59,13.78a.27.27,0,0,0,.53,0c.35-2,1.9-6,7.88-5.77v4Z" />
+          </svg></button>
       </div>
 
       <!-- View Controls (Bottom Right) -->
@@ -555,11 +557,22 @@
         <button id="zoomInBtn" class="control-btn" title="Zoom In">+</button>
         <button id="zoomOutBtn" class="control-btn" title="Zoom Out">−</button>
         <button id="actualSizeBtn" class="control-btn" title="Actual Size">◻</button>
+        <input id="zoomInput"
+          onchange="setZoom(parseFloat(this.value));updatePathFromTextarea();updateHistoryButtons();" type="number"
+          step="0.1" min="0.25" max="20" value="1" title="Zoom Level (%)" style="width: 40px; text-align: right;" />
       </div>
     </div>
   </div>
 
   <script>
+    window.appState = {
+      zoom: parseFloat(localStorage.getItem('svgEditorZoom')) || 1,
+      offsetX: 0,
+      offsetY: 0,
+      minZoom: 0.25,
+      maxZoom: 50
+    };
+
     /**
      * SVG Path Editor with Dark Theme
      * Supports M, L, H, V, C, S, Q, T, A, Z commands
@@ -1139,6 +1152,7 @@
      */
     function renderPath() {
       elements.mainPath.setAttribute('d', state.pathData);
+      elements.mainPath.setAttribute("stroke-width", 2 / window.appState.zoom)
       renderControlPoints();
     }
 
@@ -1216,6 +1230,21 @@
      * Render control points for dragging
      */
     function renderControlPoints() {
+      hui.importCssString(`
+        path.path-element {
+          stroke-width: ${1 / window.appState.zoom};
+        }
+        circle.control-handle {
+          stroke-width: ${2.4 / window.appState.zoom};
+        }
+        line.control-handle-line {
+          stroke-width: ${1 / window.appState.zoom};
+          stroke-dasharray: ${3 / window.appState.zoom}, ${3 / window.appState.zoom};
+        }
+        circle.control-point-circle {
+          stroke-width: ${2.4 / window.appState.zoom};
+        }
+      `, 'path-control-points-styles');
       elements.controlPoints.innerHTML = '';
 
       // Clear and rebuild the mapping structures
@@ -1354,7 +1383,7 @@
       }
       circle.setAttribute('cx', x);
       circle.setAttribute('cy', y);
-      circle.setAttribute('r', pointType === 'handle' ? 2 : 3);
+      circle.setAttribute('r', pointType === 'handle' ? 2 / window.appState.zoom : 3 / window.appState.zoom);
 
       g.appendChild(circle);
       elements.controlPoints.appendChild(g);
@@ -1572,14 +1601,20 @@
 
     function zoomIn() {
       setZoom(window.appState.zoom + (window.appState.zoom >= 1 ? 1 : 0.25));
+      updatePathFromTextarea();
+      updateHistoryButtons();
     }
 
     function zoomOut() {
       setZoom(window.appState.zoom - (window.appState.zoom > 1 ? 1 : 0.25));
+      updatePathFromTextarea();
+      updateHistoryButtons();
     }
 
     function resetView() {
       setZoom(1);
+      updatePathFromTextarea();
+      updateHistoryButtons();
     }
 
     /**
@@ -1660,9 +1695,9 @@
      * Arrow key state for long-press support
      */
     const arrowState = {
-      ArrowUp:    { pressed: false, timeoutId: null, intervalId: null, lastEvent: null },
-      ArrowDown:  { pressed: false, timeoutId: null, intervalId: null, lastEvent: null },
-      ArrowLeft:  { pressed: false, timeoutId: null, intervalId: null, lastEvent: null },
+      ArrowUp: { pressed: false, timeoutId: null, intervalId: null, lastEvent: null },
+      ArrowDown: { pressed: false, timeoutId: null, intervalId: null, lastEvent: null },
+      ArrowLeft: { pressed: false, timeoutId: null, intervalId: null, lastEvent: null },
       ArrowRight: { pressed: false, timeoutId: null, intervalId: null, lastEvent: null }
     };
 
@@ -1897,13 +1932,13 @@
     const pageContainerElem = document.querySelector('.page-container');
 
     // Global application state
-    window.appState = {
-      zoom: 1,
-      offsetX: 0,
-      offsetY: 0,
-      minZoom: 0.25,
-      maxZoom: 10
-    };
+    // window.appState = {
+    //   zoom: 1,
+    //   offsetX: 0,
+    //   offsetY: 0,
+    //   minZoom: 0.25,
+    //   maxZoom: 10
+    // };
 
     window.cc = {};
     // cc.findNearestNumber
@@ -1965,6 +2000,8 @@
       window.appState.zoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
       updateTransform();
       ruler.flushRuler();
+      document.querySelector('#zoomInput').value = window.appState.zoom;
+      localStorage.setItem('svgEditorZoom', window.appState.zoom);
     }
 
     /**
@@ -2021,6 +2058,7 @@
 
     window.onload = () => {
       ruler.flushRuler();
+      document.querySelector('#zoomInput').value = window.appState.zoom;
     };
   </script>
 

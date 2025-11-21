@@ -1,3 +1,28 @@
+hui = window.hui || {}
+hui.importCssString = hui.importCssString || function importCssString(cssText, id) {
+  var style = document.createElement('style')
+  if (id) {
+    var old = document.getElementById(id)
+    if (old) old.parentNode.removeChild(old)
+
+    style.id = id
+  }
+
+  var head = document.head || document.body || document.documentElement
+  head.insertBefore(style, head.lastChild)
+  if (head !== document.documentElement && style.nextSibling) {
+    head.insertBefore(style.nextSibling, style)
+  }
+  style.setAttribute('type', 'text/css')
+  // all browsers, except IE before version 9
+  if (style.styleSheet) style.styleSheet.cssText = cssText
+  // Internet Explorer before version 9
+  else style.appendChild(document.createTextNode(cssText))
+
+  return style
+}
+
+
 /**
  * 将任意大小写 path commands 转成全绝对（大写）
  * @param {Array<{type: string, params: number[]}>} commands
